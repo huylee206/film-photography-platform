@@ -1,0 +1,102 @@
+services:
+  # 1. Cổng vào duy nhất (API Gateway)
+  api-gateway:
+    image: nginx:alpine
+    container_name: fpdp-api-gateway
+    ports:
+      - "${GATEWAY_PORT:-8080}:80"
+    volumes:
+      - ./api-gateway/nginx.conf:/etc/nginx/nginx.conf:ro
+    networks:
+      - fpdp-network
+    restart: unless-stopped
+
+  # 2. Hệ quản trị CSDL (Chứa 4 DB độc lập cho các Microservices)
+  postgres:
+    image: postgres:16-alpine
+    container_name: fpdp-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-fpdp_admin}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-fpdp_secret_password}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./db-init/init-databases.sql:/docker-entrypoint-initdb.d/init-databases.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-fpdp_admin}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - fpdp-network
+    restart: unless-stopped
+
+  # 3. Bộ nhớ đệm & Khóa tài nguyên chống trùng lịch (Core Flow 3)
+  redis:
+    image: redis:7-alpine
+    container_name: fpdp-redis
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - fpdp-network
+    restart: unless-stopped
+
+  # =====================================================================
+  # KHUNG 5 MICROSERVICES (Sẽ bỏ chú thích dần khi từng Service có Dockerfile)
+  # =====================================================================
+  # identity-service:
+  #   build: ./services/identity-service
+  #   container_name: fpdp-identity-service
+  #   depends_on:
+  #     postgres:
+  #       condition: service_healthy
+  #   networks:
+  #     - fpdp-network
+
+  # catalog-resource-service:
+  #   build: ./services/catalog-resource-service
+  #   container_name: fpdp-catalog-service
+  #   depends_on:
+  #     postgres:
+  #       condition: service_healthy
+  #   networks:
+  #     - fpdp-network
+
+  # booking-session-service:
+  #   build: ./services/booking-session-service
+  #   container_name: fpdp-booking-service
+  #   depends_on:
+  #     postgres:
+  #       condition: service_healthy
+  #     redis:
+  #       condition: service_healthy
+  #   networks:
+  #     - fpdp-network
+
+  # community-service:
+  #   build: ./services/community-service
+  #   container_name: fpdp-community-service
+  #   depends_on:
+  #     postgres:
+  #       condition: service_healthy
+  #   networks:
+  #     - fpdp-network
+
+  # ai-assistant-service:
+  #   build: ./services/ai-assistant-service
+  #   container_name: fpdp-ai-service
+  #   networks:
+  #     - fpdp-network
+
+networks:
+  fpdp-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
