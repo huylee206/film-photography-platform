@@ -1,0 +1,94 @@
+name: CI Pipeline
+
+on:
+  pull_request:
+    branches: [develop, main]
+  push:
+    branches: [develop, main]
+
+jobs:
+  repo-check:
+    name: Kiểm tra cấu trúc Repo & Docker Compose
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Cấm commit file .env chứa secret
+        run: |
+          if git ls-files | grep -E '(^|/)\.env$'; then
+            echo "Lỗi: Phát hiện file .env bị commit vào repo!"; exit 1
+          fi
+      - name: Kiểm tra cú pháp docker-compose.yml
+        run: docker compose -f docker-compose.yml config -q
+      - name: Kiểm tra các file tài liệu & schema cốt lõi tồn tại
+        run: |
+          test -f infra/postgres/001_schema.sql
+          test -f docs/api/openapi.yaml
+          test -f docs/requirements/SRS.md
+
+  backend:
+    name: Backend (Node/TS)
+    runs-on: ubuntu-latest
+    if: ${{ hashFiles('backend/package.json') != '' }}
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm install
+      - run: npm run typecheck --if-present
+      - run: npm run lint --if-present
+      - run: npm test --if-present
+      - run: npm run build --if-present
+
+  web:
+    name: Web Frontend (React/Vite)
+    runs-on: ubuntu-latest
+    if: ${{ hashFiles('web/package.json') != '' }}
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm install
+      - run: npm run typecheck --if-present
+      - run: npm run lint --if-present
+      - run: npm run build --if-present
+
+  ai:
+    name: AI Service (FastAPI)
+    runs-on: ubuntu-latest
+    if: ${{ hashFiles('ai/requirements.txt') != '' }}
+    defaults:
+      run:
+        working-directory: ai
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -r requirements.txt
+      - run: pip install ruff pytest httpx
+      - run: ruff check .
+      - run: pytest -q
+
+  mobile:
+    name: Mobile App (Flutter)
+    runs-on: ubuntu-latest
+    if: ${{ hashFiles('mobile/pubspec.yaml') != '' }}
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.24.0"
+          channel: "stable"
+      - run: flutter pub get
+      - run: flutter analyze --no-fatal-infos

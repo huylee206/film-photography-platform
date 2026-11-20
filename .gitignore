@@ -1,0 +1,48 @@
+# Môi trường & bí mật
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Node / Web / Backend
+node_modules/
+dist/
+build/
+.next/
+coverage/
+
+# Python / AI
+__pycache__/
+*.pyc
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+.ipynb_checkpoints/
+ai/models/*.pt
+ai/models/*.onnx
+
+# Java (nếu dùng Spring Boot)
+target/
+*.class
+
+# Mobile (Flutter)
+mobile/.dart_tool/
+mobile/.flutter-plugins
+mobile/.flutter-plugins-dependencies
+mobile/build/
+mobile/android/.gradle/
+mobile/ios/Pods/
+
+# Docker / dữ liệu local
+docker-data/
+minio-data/
+pgdata/
+
+# IDE / OS
+.idea/
+.vscode/*
+!.vscode/extensions.json
+.DS_Store
+Thumbs.db

@@ -1,0 +1,138 @@
+openapi: 3.0.3
+info:
+  title: Film Photography & Darkroom Platform (FPDP) API
+  version: 1.0.0
+  description: Hợp đồng REST API dùng chung cho Backend, Web Frontend, Mobile App và AI Service.
+servers:
+  - url: http://localhost:4000/api/v1
+    description: Local Development Server
+tags:
+  - name: Health
+  - name: Auth
+  - name: Spaces
+  - name: Resources
+  - name: Packages
+  - name: Bookings
+  - name: Sessions
+  - name: AI
+paths:
+  /health:
+    get:
+      tags: [Health]
+      summary: Kiểm tra trạng thái hoạt động của Backend API
+      responses:
+        "200":
+          description: Hệ thống hoạt động bình thường
+  /auth/register:
+    post:
+      tags: [Auth]
+      summary: Đăng ký tài khoản mới (Photographer / Service Provider)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password, fullName, role]
+              properties:
+                email: { type: string, format: email }
+                password: { type: string, minLength: 8 }
+                fullName: { type: string }
+                role: { type: string, enum: [PHOTOGRAPHER, SERVICE_PROVIDER] }
+      responses:
+        "201":
+          description: Đăng ký thành công
+  /auth/login:
+    post:
+      tags: [Auth]
+      summary: Đăng nhập nhận cặp JWT Access & Refresh Token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email: { type: string, format: email }
+                password: { type: string }
+      responses:
+        "200":
+          description: Đăng nhập thành công
+  /spaces:
+    get:
+      tags: [Spaces]
+      summary: Tìm kiếm và lọc danh sách phòng tối / phòng chụp
+      parameters:
+        - name: spaceType
+          in: query
+          schema: { type: string, enum: [DARKROOM, STUDIO, HYBRID] }
+        - name: maxPrice
+          in: query
+          schema: { type: number }
+      responses:
+        "200":
+          description: Danh sách không gian sáng tạo
+  /resources:
+    get:
+      tags: [Resources]
+      summary: Lấy danh sách thiết bị tái sử dụng và vật tư tiêu hao
+      responses:
+        "200":
+          description: Danh sách tài nguyên
+  /packages:
+    get:
+      tags: [Packages]
+      summary: Lấy danh sách gói dịch vụ combo (Composite)
+      responses:
+        "200":
+          description: Danh sách gói dịch vụ
+  /bookings:
+    post:
+      tags: [Bookings]
+      summary: Tạo đơn đặt chỗ đa tài nguyên nguyên tử (chống double-booking)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [photographerId, startTime, endTime, items]
+              properties:
+                photographerId: { type: string, format: uuid }
+                startTime: { type: string, format: date-time }
+                endTime: { type: string, format: date-time }
+                pricingMode: { type: string, enum: [STANDARD, DYNAMIC_AI], default: STANDARD }
+                items:
+                  type: array
+                  items:
+                    type: object
+                    required: [bookableType, bookableId, quantity]
+                    properties:
+                      bookableType: { type: string, enum: [SPACE, RESOURCE, PACKAGE] }
+                      bookableId: { type: string, format: uuid }
+                      quantity: { type: integer, minimum: 1 }
+      responses:
+        "201":
+          description: Đặt chỗ thành công, trả về mã QR
+        "409":
+          description: Trùng khung giờ với đặt chỗ khác
+  /sessions/{reservationId}/check-in:
+    post:
+      tags: [Sessions]
+      summary: Quét mã QR bắt đầu phiên sử dụng phòng tối/studio
+      parameters:
+        - name: reservationId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Check-in thành công, chuyển trạng thái sang IN_SESSION
+  /ai/recommend-spaces:
+    post:
+      tags: [AI]
+      summary: Gợi ý phòng tối/studio phù hợp theo lịch sử và phong cách chụp phim
+      responses:
+        "200":
+          description: Danh sách gợi ý kèm điểm tương đồng

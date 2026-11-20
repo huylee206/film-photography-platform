@@ -1,0 +1,9 @@
+# <type>(<scope>): <mô tả ngắn, tối đa 72 ký tự>
+#
+# Nội dung chi tiết: vì sao thay đổi, thay đổi gì (xuống dòng ~72 ký tự)
+#
+# Refs: P?-??
+#
+# type : feat | fix | docs | style | refactor | perf | test | build | ci | chore | revert
+# scope: auth | space | resource | booking | package | session | payment |
+#        community | review | dashboard | admin | ai | db | infra | web | mobile
