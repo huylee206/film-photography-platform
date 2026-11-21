@@ -1,0 +1,166 @@
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: film-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-film_admin}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-film_secret_2026}
+      POSTGRES_DB: ${POSTGRES_DB:-film_platform}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./infra/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-film_admin} -d ${POSTGRES_DB:-film_platform}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - film-soa-net
+
+  redis:
+    image: redis:7-alpine
+    container_name: film-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - film-soa-net
+
+  identity-service:
+    build:
+      context: ./services/identity-service
+      dockerfile: Dockerfile
+    container_name: film-identity-service
+    restart: unless-stopped
+    env_file:
+      - .env.example
+    environment:
+      PORT: 4001
+      SERVICE_NAME: identity-service
+      DATABASE_URL: postgresql://${POSTGRES_USER:-film_admin}:${POSTGRES_PASSWORD:-film_secret_2026}@postgres:5432/${POSTGRES_DB:-film_platform}?schema=identity
+      REDIS_URL: redis://redis:6379
+    ports:
+      - "4001:4001"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - film-soa-net
+
+  catalog-booking-service:
+    build:
+      context: ./services/catalog-booking-service
+      dockerfile: Dockerfile
+    container_name: film-catalog-booking-service
+    restart: unless-stopped
+    env_file:
+      - .env.example
+    environment:
+      PORT: 4002
+      SERVICE_NAME: catalog-booking-service
+      DATABASE_URL: postgresql://${POSTGRES_USER:-film_admin}:${POSTGRES_PASSWORD:-film_secret_2026}@postgres:5432/${POSTGRES_DB:-film_platform}?schema=catalog_booking
+      REDIS_URL: redis://redis:6379
+      IDENTITY_SERVICE_URL: http://identity-service:4001
+    ports:
+      - "4002:4002"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      identity-service:
+        condition: service_started
+    networks:
+      - film-soa-net
+
+  community-service:
+    build:
+      context: ./services/community-service
+      dockerfile: Dockerfile
+    container_name: film-community-service
+    restart: unless-stopped
+    env_file:
+      - .env.example
+    environment:
+      PORT: 4003
+      SERVICE_NAME: community-service
+      DATABASE_URL: postgresql://${POSTGRES_USER:-film_admin}:${POSTGRES_PASSWORD:-film_secret_2026}@postgres:5432/${POSTGRES_DB:-film_platform}?schema=community
+      REDIS_URL: redis://redis:6379
+      IDENTITY_SERVICE_URL: http://identity-service:4001
+    ports:
+      - "4003:4003"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - film-soa-net
+
+  ai-service:
+    build:
+      context: ./ai-service
+      dockerfile: Dockerfile
+    container_name: film-ai-service
+    restart: unless-stopped
+    env_file:
+      - .env.example
+    environment:
+      PORT: 8000
+      DATABASE_URL: postgresql://${POSTGRES_USER:-film_admin}:${POSTGRES_PASSWORD:-film_secret_2026}@postgres:5432/${POSTGRES_DB:-film_platform}
+      REDIS_URL: redis://redis:6379
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - film-soa-net
+
+  api-gateway:
+    build:
+      context: ./api-gateway
+      dockerfile: Dockerfile
+    container_name: film-api-gateway
+    restart: unless-stopped
+    ports:
+      - "4000:80"
+    depends_on:
+      - identity-service
+      - catalog-booking-service
+      - community-service
+      - ai-service
+    networks:
+      - film-soa-net
+
+  web:
+    build:
+      context: ./web
+      dockerfile: Dockerfile
+    container_name: film-web
+    restart: unless-stopped
+    environment:
+      VITE_API_BASE_URL: http://localhost:4000/api/v1
+    ports:
+      - "5173:5173"
+    depends_on:
+      - api-gateway
+    networks:
+      - film-soa-net
+
+volumes:
+  postgres_data:
+
+networks:
+  film-soa-net:
+    driver: bridge

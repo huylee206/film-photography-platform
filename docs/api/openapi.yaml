@@ -1,0 +1,51 @@
+openapi: 3.0.3
+info:
+  title: Film Photography Platform - SOA API Gateway Specification
+  version: 1.0.0
+  description: Hợp đồng REST API thống nhất đi qua Nginx API Gateway (Port 4000) tới 4 Microservices.
+servers:
+  - url: http://localhost:4000/api/v1
+    description: Local API Gateway
+paths:
+  /auth/register:
+    post:
+      tags: [Identity Service (:4001)]
+      summary: Đăng ký tài khoản mới
+      responses:
+        '201':
+          description: Tạo tài khoản thành công
+  /auth/login:
+    post:
+      tags: [Identity Service (:4001)]
+      summary: Đăng nhập bằng Email/Password nhận JWT Access & Refresh Token
+      responses:
+        '200':
+          description: Đăng nhập thành công
+  /spaces:
+    get:
+      tags: [Catalog & Booking Service (:4002)]
+      summary: Danh sách không gian sáng tạo (Darkroom, Analog Studio, Hybrid Lab)
+      responses:
+        '200':
+          description: Danh sách không gian
+  /bookings:
+    post:
+      tags: [Catalog & Booking Service (:4002)]
+      summary: Đặt chỗ nguyên tử kết hợp không gian và thiết bị (GiST Anti-Double-Booking)
+      responses:
+        '201':
+          description: Tạo đơn đặt chỗ thành công
+  /community/posts:
+    get:
+      tags: [Community Service (:4003)]
+      summary: Danh sách bài viết cộng đồng và bài viết chuyên gia
+      responses:
+        '200':
+          description: Danh sách bài viết
+  /ai/semantic-search:
+    post:
+      tags: [AI Microservice (:8000)]
+      summary: Tìm kiếm không gian bằng ngữ nghĩa tiếng Việt tự nhiên (pgvector)
+      responses:
+        '200':
+          description: Kết quả gợi ý không gian phù hợp
