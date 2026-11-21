@@ -1,0 +1,10 @@
+# <type>(<scope>): <mô tả ngắn gọn, không dấu chấm cuối câu>
+#
+# Nội dung chi tiết (nếu cần): giải thích lý do thay đổi và tác động kiến trúc
+#
+# Refs: FPDP-XXX
+#
+# --- QUY ƯỚC BẮT BUỘC (JIRA INTEGRATION) ---
+# type : feat | fix | docs | refactor | test | build | ci | chore
+# scope: gateway | identity | catalog | booking | payment | community | ai | web | mobile | db | infra
+# Footer BẮT BUỘC chứa mã Jira dự án dạng: Refs: FPDP-8 (hoặc FPDP-11, ...)
